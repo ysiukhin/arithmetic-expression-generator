@@ -1,0 +1,22 @@
+# Maven
+target/
+
+# IDE (IntelliJ IDEA)
+.idea/
+*.iml
+*.iws
+out/
+
+# Log files
+*.log
+
+# Generated output files
+output.txt
+output.txtAns
+output.xls
+output.xlsAns
+*.xls
+
+# Other common temporary files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,13 @@
+# Maven
+target/
+
+# IDE (IntelliJ IDEA)
+.idea/
+*.iml
+*.iws
+out/
+
+# Eclipse (commonly ignored, might not apply to you)
+.project
+.classpath
+.settings/
