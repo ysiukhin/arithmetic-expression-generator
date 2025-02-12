@@ -1,0 +1,32 @@
+<configuration>
+    <!-- Аппендер для записи логов в файл -->
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>application.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Аппендер для вывода логов в консоль -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Логгер для ошибок, которые будут записываться только в файл -->
+    <logger name="fileOnly" level="error">
+        <appender-ref ref="FILE" />
+    </logger>
+
+    <!-- Логгер для обычных информационных сообщений, которые будут выводиться только в консоль -->
+    <logger name="consoleOnly" level="info">
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- Корневой логгер для всех остальных сообщений -->
+    <root level="debug">
+        <appender-ref ref="FILE" />
+        <appender-ref ref="CONSOLE" />
+    </root>
+</configuration>
