@@ -5,10 +5,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -26,20 +23,22 @@ public class App
 
     private static final Logger logger = LoggerFactory.getLogger(App.class);
     public static final int START_VALUE = 2;
+    public static int PAGE_COUNTER = initializePageCounter();
 
-    public static void writeToExcelFile(List<String> randomSelections, String filePath) {
-        try (Workbook workbook = new HSSFWorkbook()) {
+    public static void writeToExcelFile(List<String> randomSelections, List<String> randomSelectionsAns, String filePath) {
+        String filePathAns = filePath + "Ans";
+
+        try (Workbook workbook = new HSSFWorkbook(); Workbook workbookAns = new HSSFWorkbook()) {
             String sheetName = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             Sheet sheet = workbook.createSheet(sheetName);
+            Sheet sheetAns = workbookAns.createSheet(sheetName);
 
-            // Установка ширины всех столбцов в 15.3 символа
-//            int columnWidth = (int)(16.57 * 256);
             int columnWidth = 4430;
             for (int i = 0; i < COL_QNTY; i++) {
                 sheet.setColumnWidth(i, columnWidth);
+                sheetAns.setColumnWidth(i, columnWidth);
             }
 
-            // Создание стиля ячеек
             CellStyle baseStyle = workbook.createCellStyle();
             Font font = workbook.createFont();
             font.setFontName("Calibri");
@@ -52,68 +51,204 @@ public class App
             cellStyleWithBorder.cloneStyleFrom(baseStyle);
             cellStyleWithBorder.setBorderRight(BorderStyle.THIN);
 
+            CellStyle baseStyleAns = workbookAns.createCellStyle();
+            baseStyleAns.cloneStyleFrom(baseStyle);
+            CellStyle cellStyleWithBorderAns = workbookAns.createCellStyle();
+            cellStyleWithBorderAns.cloneStyleFrom(cellStyleWithBorder);
+
             int rowCount = 0;
             for (int i = 0; i < ROW_QNTY; i++) {
-                Row row = sheet.createRow(rowCount++);
+                Row row = sheet.createRow(rowCount);
+                Row rowAns = sheetAns.createRow(rowCount++);
                 row.setHeightInPoints(26.25f);
+                rowAns.setHeightInPoints(26.25f);
 
                 for (int j = 0; j < COL_QNTY; j++) {
+                    int index = i * COL_QNTY + j;
+
                     Cell cell = row.createCell(j);
-                    if (i * COL_QNTY + j < randomSelections.size()) {
-                        cell.setCellValue(randomSelections.get(i * COL_QNTY + j));
+                    Cell cellAns = rowAns.createCell(j);
+
+                    if (index < randomSelections.size()) {
+                        cell.setCellValue(randomSelections.get(index));
                     } else {
                         cell.setCellValue("N/A");
                     }
 
+                    if (index < randomSelectionsAns.size()) {
+                        cellAns.setCellValue(randomSelectionsAns.get(index));
+                    } else {
+                        cellAns.setCellValue("N/A");
+                    }
+
                     if (j < COL_QNTY - 1) {
                         cell.setCellStyle(cellStyleWithBorder);
+                        cellAns.setCellStyle(cellStyleWithBorderAns);
                     } else {
                         cell.setCellStyle(baseStyle);
+                        cellAns.setCellStyle(baseStyleAns);
                     }
                 }
             }
 
-            // Настройка параметров печати
             PrintSetup printSetup = sheet.getPrintSetup();
-            printSetup.setPaperSize(PrintSetup.LETTER_PAPERSIZE); // размер бумаги - Letter
-            printSetup.setLandscape(false); // для печати в альбомной ориентации
+            printSetup.setPaperSize(PrintSetup.LETTER_PAPERSIZE);
+            printSetup.setLandscape(false);
 
-            // Установка полей (отступов) страницы
-            sheet.setMargin(Sheet.TopMargin, 0.3 / 2.54); // переводим см в дюймы
+            PrintSetup printSetupAns = sheetAns.getPrintSetup();
+            printSetupAns.setPaperSize(PrintSetup.LETTER_PAPERSIZE);
+            printSetupAns.setLandscape(false);
+
+            sheet.setMargin(Sheet.TopMargin, 0.3 / 2.54);
             sheet.setMargin(Sheet.BottomMargin, 0.3 / 2.54);
             sheet.setMargin(Sheet.LeftMargin, 0.3 / 2.54);
             sheet.setMargin(Sheet.RightMargin, 0.3 / 2.54);
-            sheet.setMargin(Sheet.HeaderMargin, 0.8 / 2.54);
-            sheet.setMargin(Sheet.FooterMargin, 0.8 / 2.54);
+            sheet.setMargin(Sheet.HeaderMargin, 0);
+            sheet.setMargin(Sheet.FooterMargin, 0.3 / 2.54);
+            sheet.getFooter().setCenter("AlexandrMathTraning-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
 
-            try (FileOutputStream fileOut = new FileOutputStream(filePath)) {
+            sheetAns.setMargin(Sheet.TopMargin, 0.3 / 2.54);
+            sheetAns.setMargin(Sheet.BottomMargin, 0.3 / 2.54);
+            sheetAns.setMargin(Sheet.LeftMargin, 0.3 / 2.54);
+            sheetAns.setMargin(Sheet.RightMargin, 0.3 / 2.54);
+            sheetAns.setMargin(Sheet.HeaderMargin, 0);
+            sheetAns.setMargin(Sheet.FooterMargin, 0.3 / 2.54);
+            sheetAns.getFooter().setCenter("AlexandrMathTraning-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+
+            try (FileOutputStream fileOut = new FileOutputStream(filePath);
+                 FileOutputStream fileOutAns = new FileOutputStream(filePathAns)) {
                 workbook.write(fileOut);
-                System.out.println("Файл успешно записан: " + filePath);
+                workbookAns.write(fileOutAns);
+                System.out.println("Файлы успешно записаны: " + filePath + " и " + filePathAns);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public static void writeToFile(List<String> randomSelections, String filePath) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+    public static void writeToExcelOneBook(List<String> randomSelections, List<String> randomSelectionsAns, int num) {
+        String fileName = getFileName() + ".xls";
+
+        try (Workbook workbook = new HSSFWorkbook()) {
+            String sheetNameBase = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+            // Создаем два листа в одной книге
+            Sheet sheet = workbook.createSheet(sheetNameBase);
+            Sheet sheetAns = workbook.createSheet(sheetNameBase + " Answers");
+
+            // Общие настройки для обоих листов
+            int columnWidth = 4430;
+            for (int i = 0; i < COL_QNTY; i++) {
+                sheet.setColumnWidth(i, columnWidth);
+                sheetAns.setColumnWidth(i, columnWidth);
+            }
+
+            // Создаем стили для основной книги
+            CellStyle baseStyle = workbook.createCellStyle();
+            Font font = workbook.createFont();
+            font.setFontName("Calibri");
+            font.setFontHeightInPoints((short) 11);
+            baseStyle.setFont(font);
+            baseStyle.setAlignment(HorizontalAlignment.CENTER);
+            baseStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+            CellStyle cellStyleWithBorder = workbook.createCellStyle();
+            cellStyleWithBorder.cloneStyleFrom(baseStyle);
+            cellStyleWithBorder.setBorderRight(BorderStyle.THIN);
+
+            // Заполняем оба листа
+            fillSheet(sheet, randomSelections, baseStyle, cellStyleWithBorder);
+            fillSheet(sheetAns, randomSelectionsAns, baseStyle, cellStyleWithBorder);
+
+            // Настройки печати для основного листа
+            setPrintSettings(sheet);
+            setPrintSettings(sheetAns);
+
+            // Сохраняем книгу
+            try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
+                workbook.write(fileOut);
+                System.out.println("Файл успешно записан: " + fileName);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static String getFileName() {
+        return "AlexandrMathTraning-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "-" + PAGE_COUNTER;
+    }
+
+    private static void fillSheet(Sheet sheet, List<String> data, CellStyle baseStyle, CellStyle borderStyle) {
+        int rowCount = 0;
+        for (int i = 0; i < ROW_QNTY; i++) {
+            Row row = sheet.createRow(rowCount++);
+            row.setHeightInPoints(26.25f);
+
+            for (int j = 0; j < COL_QNTY; j++) {
+                int index = i * COL_QNTY + j;
+                Cell cell = row.createCell(j);
+
+                cell.setCellValue(index < data.size() ? data.get(index) : "N/A");
+                cell.setCellStyle(j < COL_QNTY - 1 ? borderStyle : baseStyle);
+            }
+        }
+    }
+
+    private static void setPrintSettings(Sheet sheet) {
+        PrintSetup printSetup = sheet.getPrintSetup();
+        printSetup.setPaperSize(PrintSetup.LETTER_PAPERSIZE);
+        printSetup.setLandscape(false);
+
+        sheet.setMargin(Sheet.TopMargin, 0.3 / 2.54);
+        sheet.setMargin(Sheet.BottomMargin, 0.3 / 2.54);
+        sheet.setMargin(Sheet.LeftMargin, 0.3 / 2.54);
+        sheet.setMargin(Sheet.RightMargin, 0.3 / 2.54);
+        sheet.setMargin(Sheet.HeaderMargin, 0);
+        sheet.setMargin(Sheet.FooterMargin, 0);
+//        sheet.setMargin(Sheet.FooterMargin, 0.3 / 2.54);
+
+        String headerText = getFileName();
+//        String footerText = "AlexandrMathTraning-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        sheet.getHeader().setCenter(headerText);
+//        sheet.getFooter().setCenter(footerText);
+    }
+
+    public static void writeToFile(List<String> randomSelections, List<String> randomSelectionsAns, String filePath) {
+        String filePathAns = filePath + "Ans";
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
+             BufferedWriter writerAns = new BufferedWriter(new FileWriter(filePathAns))) {
+
             for (int i = 0; i < ROW_QNTY; i++) {
                 for (int j = 0; j < COL_QNTY; j++) {
-                    // Проверка на наличие доступных элементов
-                    if (i * COL_QNTY + j < randomSelections.size()) {
-                        writer.write(randomSelections.get(i * COL_QNTY + j).toString());
+                    int index = i * COL_QNTY + j;
+
+                    // Запись в первый файл
+                    if (index < randomSelections.size()) {
+                        writer.write(randomSelections.get(index));
                     } else {
-                        writer.write("N/A"); // Если элементов не хватает, записываем "N/A"
+                        writer.write("N/A");
                     }
 
-                    // Добавляем ";" после каждого элемента, кроме последнего в строке
+                    // Запись в второй файл
+                    if (index < randomSelectionsAns.size()) {
+                        writerAns.write(randomSelectionsAns.get(index));
+                    } else {
+                        writerAns.write("N/A");
+                    }
+
+                    // Добавляем "; " после каждого элемента, кроме последнего в строке
                     if (j < COL_QNTY - 1) {
                         writer.write("; ");
+                        writerAns.write("; ");
                     }
                 }
-                writer.newLine(); // Перенос на новую строку после каждой строки
+                writer.newLine(); // Перенос строки в первом файле
+                writerAns.newLine(); // Перенос строки во втором файле
             }
-            System.out.println("Файл успешно записан: " + filePath);
+
+            System.out.println("Файлы успешно записаны: " + filePath + " и " + filePathAns);
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -139,22 +274,26 @@ public class App
 
         Map<List<ArithmeticOperation>, List<ArithmeticExpression>> complexExpressions = createComplexExpressions(simpleExpessionsMap);
         List<String> resultList = new ArrayList<>();
+        List<String> resultListWithAns = new ArrayList<>();
         for (Map.Entry<List<ArithmeticOperation>, List<ArithmeticExpression>> entry : complexExpressions.entrySet()) {
-//            List<ArithmeticExpression> processed = process(new ArrayList<>(entry.getValue()));
-            resultList.addAll(process(new ArrayList<>(entry.getValue())));
-//            System.out.println(processed);
+            Map<Boolean, List<String>> processed = process(new ArrayList<>(entry.getValue()));
+            resultList.addAll(processed.get(true));
+            resultListWithAns.addAll(processed.get(false));
+//            logger.info(processed.toString());
         }
 
 
-        writeToFile(resultList, "output.txt");
-        writeToExcelFile(resultList, "output.xls");
+        writeToFile(resultList, resultListWithAns, "output.txt");
+        writeToExcelFile(resultList, resultListWithAns,"output.xls");
+        writeToExcelOneBook(resultList, resultListWithAns, PAGE_COUNTER);
     }
 
-    private static List<String> process(List<ArithmeticExpression> sourceList) {
+    private static Map<Boolean, List<String>> process(List<ArithmeticExpression> sourceList) {
         Collections.shuffle(sourceList);
         int operationsQanty = ArithmeticOperation.values().length;
         int newSubsetSize = ROW_QNTY * COL_QNTY / (operationsQanty * operationsQanty);
         List<String> resultListStr = new ArrayList<>(newSubsetSize);
+        List<String> resultListStrWithAns = new ArrayList<>(newSubsetSize);
         int indexToReplace = 1;
         for (int i = 0; i < newSubsetSize; i++) {
             int elementIndex = random.nextInt(sourceList.size());
@@ -165,11 +304,16 @@ public class App
 //            } while(true);
 
 //            sourceList.get(elementIndex));
-            resultListStr.add(replaceDigit(sourceList.remove(elementIndex).toString(), indexToReplace));
+            String string = sourceList.remove(elementIndex).toString();
+            resultListStrWithAns.add(string);
+            resultListStr.add(replaceDigit(string, indexToReplace));
             indexToReplace = i % (operationsQanty * operationsQanty) + 1;
         }
+        Map<Boolean, List<String>> resultMap = new HashMap<>();
+        resultMap.put(true, resultListStr);
+        resultMap.put(false, resultListStrWithAns);
 //        Collections.shuffle(resultListStr);
-        return resultListStr;
+        return resultMap;
     }
 
     private static String replaceDigit(String expression, int indexToReplace) {
@@ -240,5 +384,30 @@ public class App
         }
 
         return setOfArithmeticExpressions;
+    }
+
+    // Метод для инициализации PAGE_COUNTER
+    public static int initializePageCounter() {
+        String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        Pattern pattern = Pattern.compile(
+                "^AlexandrMathTraning-" + currentDate + "-(\\d+)\\.xls$"
+        );
+
+        // Получаем текущую рабочую директорию приложения
+        File directory = new File(".");
+        File[] files = directory.listFiles();
+        int maxCounter = 0;
+
+        if (files != null) {
+            for (File file : files) {
+                Matcher matcher = pattern.matcher(file.getName());
+                if (matcher.find()) {
+                    int currentNumber = Integer.parseInt(matcher.group(1));
+                    maxCounter = Math.max(maxCounter, currentNumber);
+                }
+            }
+        }
+
+        return maxCounter + 1;
     }
 }
