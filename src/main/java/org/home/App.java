@@ -1,7 +1,13 @@
 package org.home;
 
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.BaseFont;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Font;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,6 +15,7 @@ import java.io.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -205,12 +212,9 @@ public class App
         sheet.setMargin(Sheet.RightMargin, 0.3 / 2.54);
         sheet.setMargin(Sheet.HeaderMargin, 0);
         sheet.setMargin(Sheet.FooterMargin, 0);
-//        sheet.setMargin(Sheet.FooterMargin, 0.3 / 2.54);
 
         String headerText = getFileName();
-//        String footerText = "AlexandrMathTraning-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         sheet.getHeader().setCenter(headerText);
-//        sheet.getFooter().setCenter(footerText);
     }
 
     public static void writeToFile(List<String> randomSelections, List<String> randomSelectionsAns, String filePath) {
@@ -279,13 +283,23 @@ public class App
             Map<Boolean, List<String>> processed = process(new ArrayList<>(entry.getValue()));
             resultList.addAll(processed.get(true));
             resultListWithAns.addAll(processed.get(false));
-//            logger.info(processed.toString());
         }
 
-
-        writeToFile(resultList, resultListWithAns, "output.txt");
-        writeToExcelFile(resultList, resultListWithAns,"output.xls");
+        // Generate Excel file
+        String excelFileName = getFileName() + ".xls";
         writeToExcelOneBook(resultList, resultListWithAns, PAGE_COUNTER);
+
+        // Generate PDF files from the data
+        String pdfFileName = getFileName() + ".pdf";
+        String pdfFileNameAns = getFileName() + "_Answers.pdf";
+
+        writeToPdf(resultList, pdfFileName, getFileName());
+        writeToPdf(resultListWithAns, pdfFileNameAns, getFileName());
+
+        System.out.println("Files generated successfully:");
+        System.out.println("- Excel: " + excelFileName);
+        System.out.println("- PDF: " + pdfFileName);
+        System.out.println("- PDF Answers: " + pdfFileNameAns);
     }
 
     private static Map<Boolean, List<String>> process(List<ArithmeticExpression> sourceList) {
@@ -297,13 +311,6 @@ public class App
         int indexToReplace = 1;
         for (int i = 0; i < newSubsetSize; i++) {
             int elementIndex = random.nextInt(sourceList.size());
-//            do {
-//                elementIndex = random.nextInt(sourceList.size());
-//                ArithmeticExpression expression = sourceList.remove(elementIndex);
-//                if ()
-//            } while(true);
-
-//            sourceList.get(elementIndex));
             String string = sourceList.remove(elementIndex).toString();
             resultListStrWithAns.add(string);
             resultListStr.add(replaceDigit(string, indexToReplace));
@@ -312,7 +319,6 @@ public class App
         Map<Boolean, List<String>> resultMap = new HashMap<>();
         resultMap.put(true, resultListStr);
         resultMap.put(false, resultListStrWithAns);
-//        Collections.shuffle(resultListStr);
         return resultMap;
     }
 
@@ -409,5 +415,112 @@ public class App
         }
 
         return maxCounter + 1;
+    }
+
+
+    // PDF generation method - Calibri font and increased cell height
+    public static void writeToPdf(List<String> expressions, String pdfFilePath, String title) {
+        // Use US Letter size in PORTRAIT orientation with zero margins
+        Document document = new Document(PageSize.LETTER, 12f, 12f, 6f, 6f); // left, right, top, bottom margins all set to 12
+        try {
+            PdfWriter.getInstance(document, new FileOutputStream(pdfFilePath));
+            document.open();
+
+            // Create Calibri font - you need the Calibri font file in your system
+            // If Calibri is not available, it will fall back to Helvetica
+            BaseFont calibriBaseFont = BaseFont.createFont(
+                    "c:/windows/fonts/calibri.ttf", // Windows path to Calibri
+                    BaseFont.IDENTITY_H,
+                    BaseFont.EMBEDDED
+            );
+
+            // Alternative paths if needed:
+            // "C:/Windows/Fonts/calibri.ttf" (Windows)
+            // "/Library/Fonts/Calibri.ttf" (Mac)
+            // "/usr/share/fonts/truetype/msttcorefonts/Calibri.ttf" (Linux)
+
+            // Add title with Calibri
+            com.itextpdf.text.Font titleFont = new com.itextpdf.text.Font(
+                    calibriBaseFont,
+                    11,
+                    com.itextpdf.text.Font.NORMAL
+            );
+            Paragraph titleParagraph = new Paragraph(title, titleFont);
+            titleParagraph.setAlignment(Element.ALIGN_CENTER);
+            titleParagraph.setSpacingAfter(10);
+            document.add(titleParagraph);
+
+            // Create table
+            PdfPTable table = new PdfPTable(COL_QNTY);
+            table.setWidthPercentage(100);
+
+            // Distribute column widths equally
+            float[] columnWidths = new float[COL_QNTY];
+            Arrays.fill(columnWidths, 1.0f);
+            table.setWidths(columnWidths);
+
+            // Define Calibri font for table cells
+            com.itextpdf.text.Font cellFont = new com.itextpdf.text.Font(
+                    calibriBaseFont,
+                    11.2F,
+                    com.itextpdf.text.Font.NORMAL
+            );
+
+            int expressionCount = expressions.size();
+
+            for (int i = 0; i < ROW_QNTY; i++) {
+                for (int j = 0; j < COL_QNTY; j++) {
+                    int index = i * COL_QNTY + j;
+                    String cellValue = index < expressionCount ? expressions.get(index) : "";
+
+                    PdfPCell pdfCell = new PdfPCell(new Phrase(cellValue, cellFont));
+
+                    // Allow text to wrap
+                    pdfCell.setNoWrap(true);
+                    pdfCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    pdfCell.setVerticalAlignment(Element.ALIGN_CENTER);
+
+                    // Set all borders with thin width
+                    pdfCell.setBorder(Rectangle.RIGHT + Rectangle.LEFT);
+                    pdfCell.setBorderWidth(0.1f);
+
+                    // INCREASE CELL HEIGHT - set fixed height
+                    pdfCell.setFixedHeight(24.f); // Adjust this value as needed (30 points = ~10mm)
+
+                    table.addCell(pdfCell);
+                }
+            }
+
+            document.add(table);
+
+            // Add footer with Calibri
+//            com.itextpdf.text.Font footerFont = new com.itextpdf.text.Font(
+//                    calibriBaseFont,
+//                    8,
+//                    com.itextpdf.text.Font.ITALIC
+//            );
+//            Paragraph footer = new Paragraph(
+//                    "Generated on: " + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+//                    footerFont
+//            );
+//            footer.setAlignment(Element.ALIGN_CENTER);
+//            footer.setSpacingBefore(5);
+//            document.add(footer);
+
+            System.out.println("PDF file created successfully: " + pdfFilePath);
+
+        } catch (DocumentException | FileNotFoundException e) {
+            System.err.println("Error creating PDF file: " + e.getMessage());
+            e.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("Error loading Calibri font: " + e.getMessage());
+            // Fallback: use Helvetica if Calibri is not available
+            System.out.println("Falling back to Helvetica font");
+            // You could add fallback logic here to recreate the PDF with Helvetica
+        } finally {
+            if (document.isOpen()) {
+                document.close();
+            }
+        }
     }
 }
